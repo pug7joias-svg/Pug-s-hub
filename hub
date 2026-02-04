@@ -1,259 +1,253 @@
 --[[
-    ════════════════════════════════════════════════
-    █████╗ ██╗  ██╗ ██████╗     ██╗  ██╗██╗   ██╗██████╗ 
-    ██╔══██╗██║  ██║██╔════╝     ██║  ██║██║   ██║██╔══██╗
-    ███████║███████║██║  ███╗    ███████║██║   ██║██████╔╝
-    ██╔══██║██╔══██║██║   ██║    ██╔══██║██║   ██║██╔══██╗
-    ██║  ██║██║  ██║╚██████╔╝    ██║  ██║╚██████╔╝██████╔╝
-    ╚═╝  ╚═╝╚═╝  ╚═╝ ╚═════╝     ╚═╝  ╚═╝ ╚═════╝ ╚═════╝ 
-    ════════════════════════════════════════════════
-    🔥 FPS FLICK V1.6 - Pug's HUB
-    👤 GitHub: github.com/pug7joias
-    📅 Versão: 1.6
-    ════════════════════════════════════════════════
+    Pug's HUB - FPS FLICK (Minimal)
+    Só Aimbot + ESP + FOV Circle + Team Check
+    V1.6 - pug7joias
 ]]--
-
--- Pug's HUB - FPS FLICK V1.6
 
 getgenv().Pug = getgenv().Pug or {}
 
 local WindUI = loadstring(game:HttpGet("https://github.com/Footagesus/WindUI/releases/latest/download/main.lua"))()
-
 if not WindUI then return end
 
--- Configurações padrão (igual)
+-- Configurações mínimas
 Pug.AimbotEnabled = false
 Pug.WallCheck = false
+Pug.TeamCheck = true   -- novo: ignora players do mesmo time
 Pug.SmoothAim = 5
-Pug.FOVSize = 100
-Pug.FOVEnabled = false
-Pug.FOVColor = Color3.fromRGB(255, 0, 0)
-Pug.SpeedEnabled = false
-Pug.SpeedValue = 16
-Pug.BunnyHopEnabled = false
-Pug.SpinBotEnabled = false
-Pug.SpinBotSpeed = 30
-Pug.ThirdPersonEnabled = false
-Pug.CustomFOVEnabled = false
-Pug.CustomFOV = 70
-Pug.HitSoundEnabled = false
-Pug.HitSoundID = "rbxassetid://6534947240"
-Pug.HitSoundVolume = 0.5
-Pug.OriginalHitSounds = {}
-Pug.ESPSettings = {
-    Outline = {Enabled = false, Color = Color3.fromRGB(255, 255, 255)},
-    Name = {Enabled = false, Color = Color3.fromRGB(255, 255, 0)},
-    Skeleton = {Enabled = false, Color = Color3.fromRGB(255, 0, 0)},
-    Tracer = {Enabled = false, Color = Color3.fromRGB(0, 255, 255)}
-}
+Pug.FOVSize = 150
+Pug.FOVEnabled = true  -- FOV circle visível por padrão
 
--- HitSounds tabela (igual)
-Pug.HitSounds = {
-    ["🔔 Bell"] = "rbxassetid://6534947240",
-    ["💀 Bameware"] = "rbxassetid://3124331820",
-    ["🎯 Skeet"] = "rbxassetid://6937353691",
-    ["🔫 Cod Hitmarker"] = "rbxassetid://160432334",
-    ["⚡ Neverlose"] = "rbxassetid://8679627751",
-    ["💎 Minecraft"] = "rbxassetid://4018616850"
+Pug.ESPSettings = {
+    Outline = {Enabled = true},
+    Name = {Enabled = true},
+    Skeleton = {Enabled = false},
+    Tracer = {Enabled = false}
 }
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
-local UserInputService = game:GetService("UserInputService")
 local Camera = workspace.CurrentCamera
 local LocalPlayer = Players.LocalPlayer
-local Lighting = game:GetService("Lighting")
 
--- Funções HitSound (igual, só trocado Pug)
-function Pug.ReplaceHitSound(sound)
-    if sound:IsA("Sound") and sound.Name == "HitSound" then
-        if not Pug.OriginalHitSounds[sound] then
-            Pug.OriginalHitSounds[sound] = sound.SoundId
-        end
-        if Pug.HitSoundEnabled then
-            sound.SoundId = Pug.HitSoundID
-            sound.Volume = Pug.HitSoundVolume
-        else
-            if Pug.OriginalHitSounds[sound] then
-                sound.SoundId = Pug.OriginalHitSounds[sound]
-            end
-        end
-    end
-end
-
-function Pug.ReplaceAllHitSounds()
-    for _, descendant in pairs(game:GetDescendants()) do
-        Pug.ReplaceHitSound(descendant)
-    end
-end
-
-game.DescendantAdded:Connect(function(descendant)
-    if descendant:IsA("Sound") and descendant.Name == "HitSound" then
-        wait(0.05)
-        Pug.ReplaceHitSound(descendant)
-    end
-end)
-
-game.DescendantAdded:Connect(function(descendant)
-    if descendant:IsA("Sound") and descendant.Name == "HitSound" then
-        descendant:GetPropertyChangedSignal("SoundId"):Connect(function()
-            if Pug.HitSoundEnabled and descendant.SoundId ~= Pug.HitSoundID then
-                descendant.SoundId = Pug.HitSoundID
-            end
-        end)
-    end
-end)
-
--- FOV Circle (nome trocado)
-local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
+-- FOV Circle (vermelho fixo, sempre no centro da tela)
 local FOVGui = Instance.new("ScreenGui")
 FOVGui.Name = "Pug_FOVCircle"
 FOVGui.ResetOnSpawn = false
 FOVGui.IgnoreGuiInset = true
-FOVGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-FOVGui.Parent = PlayerGui
+FOVGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
 
-local FOVCircleFrame = Instance.new("Frame")
-FOVCircleFrame.Name = "Circle"
-FOVCircleFrame.AnchorPoint = Vector2.new(0.5, 0.5)
-FOVCircleFrame.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
-FOVCircleFrame.BackgroundTransparency = 1
-FOVCircleFrame.BorderSizePixel = 0
-FOVCircleFrame.Size = UDim2.new(0, 200, 0, 200)
-FOVCircleFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
-FOVCircleFrame.Visible = false
-FOVCircleFrame.ZIndex = 999
-FOVCircleFrame.Parent = FOVGui
+local FOVCircle = Instance.new("Frame")
+FOVCircle.Name = "Circle"
+FOVCircle.AnchorPoint = Vector2.new(0.5, 0.5)
+FOVCircle.BackgroundTransparency = 1
+FOVCircle.Size = UDim2.new(0, Pug.FOVSize * 2, 0, Pug.FOVSize * 2)
+FOVCircle.Position = UDim2.new(0.5, 0, 0.5, 0)
+FOVCircle.Visible = Pug.FOVEnabled
+FOVCircle.Parent = FOVGui
 
-local CircleStroke = Instance.new("UIStroke")
-CircleStroke.Color = Color3.fromRGB(255, 0, 0)
-CircleStroke.Thickness = 2
-CircleStroke.Transparency = 0
-CircleStroke.Parent = FOVCircleFrame
+local Stroke = Instance.new("UIStroke")
+Stroke.Color = Color3.fromRGB(255, 0, 0)
+Stroke.Thickness = 2
+Stroke.Parent = FOVCircle
 
-local CircleCorner = Instance.new("UICorner")
-CircleCorner.CornerRadius = UDim.new(1, 0)
-CircleCorner.Parent = FOVCircleFrame
+local Corner = Instance.new("UICorner")
+Corner.CornerRadius = UDim.new(1, 0)
+Corner.Parent = FOVCircle
 
-Pug.FOVCircle = { Frame = FOVCircleFrame, Stroke = CircleStroke, Gui = FOVGui }
-
--- GetClosestPlayer (igual)
+-- Função para pegar o alvo mais próximo (com team check)
 function Pug.GetClosestPlayer()
-    -- (código idêntico ao original, só trocado Pug.)
-    local ClosestPlayer = nil
-    local ShortestDistance = math.huge
+    local closest = nil
+    local shortest = math.huge
+    local center = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
+
+    local myTeam = LocalPlayer.Team
+
     for _, player in pairs(Players:GetPlayers()) do
-        if player ~= LocalPlayer and player.Character then
-            local character = player.Character
-            local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
-            local head = character:FindFirstChild("Head")
-            local humanoid = character:FindFirstChild("Humanoid")
-            if humanoidRootPart and head and humanoid and humanoid.Health > 0 then
-                local screenPoint, onScreen = Camera:WorldToViewportPoint(head.Position)
+        if player ~= LocalPlayer and player.Character and player.Team ~= myTeam or not Pug.TeamCheck then
+            local char = player.Character
+            local head = char:FindFirstChild("Head")
+            local humanoid = char:FindFirstChild("Humanoid")
+            local root = char:FindFirstChild("HumanoidRootPart")
+
+            if head and humanoid and humanoid.Health > 0 and root then
+                local screenPos, onScreen = Camera:WorldToViewportPoint(head.Position)
                 if onScreen then
-                    local viewportCenter = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
-                    local distance = (Vector2.new(screenPoint.X, screenPoint.Y) - viewportCenter).Magnitude
-                    if distance < Pug.FOVSize and distance < ShortestDistance then
+                    local dist = (Vector2.new(screenPos.X, screenPos.Y) - center).Magnitude
+                    if dist < Pug.FOVSize and dist < shortest then
                         if Pug.WallCheck then
-                            local raycastParams = RaycastParams.new()
-                            raycastParams.FilterDescendantsInstances = {LocalPlayer.Character}
-                            raycastParams.FilterType = Enum.RaycastFilterType.Blacklist
-                            local rayResult = workspace:Raycast(Camera.CFrame.Position, (head.Position - Camera.CFrame.Position).Unit * 1000, raycastParams)
-                            if rayResult and rayResult.Instance and rayResult.Instance:IsDescendantOf(character) then
-                                ClosestPlayer = player
-                                ShortestDistance = distance
+                            local rayParams = RaycastParams.new()
+                            rayParams.FilterDescendantsInstances = {LocalPlayer.Character or game}
+                            rayParams.FilterType = Enum.RaycastFilterType.Exclude
+                            local ray = workspace:Raycast(Camera.CFrame.Position, (head.Position - Camera.CFrame.Position).Unit * 5000, rayParams)
+                            if ray and ray.Instance and ray.Instance:IsDescendantOf(char) then
+                                closest = player
+                                shortest = dist
                             end
                         else
-                            ClosestPlayer = player
-                            ShortestDistance = distance
+                            closest = player
+                            shortest = dist
                         end
                     end
                 end
             end
         end
     end
-    return ClosestPlayer
+    return closest
 end
 
--- ESP system (igual)
+-- ESP simples (box + name + distância)
 Pug.ESPObjects = {}
+
 function Pug.CreateESP(player)
     if Pug.ESPObjects[player] then return end
-    Pug.ESPObjects[player] = {Outline = {}, Name = nil, Skeleton = {}, Tracer = nil}
+    Pug.ESPObjects[player] = {Box = {}, Name = nil}
 end
 
 function Pug.RemoveESP(player)
     if Pug.ESPObjects[player] then
-        for _, obj in pairs(Pug.ESPObjects[player].Outline) do if obj then pcall(function() obj:Remove() end) end end
-        for _, obj in pairs(Pug.ESPObjects[player].Skeleton) do if obj then pcall(function() obj:Remove() end) end end
+        for _, line in pairs(Pug.ESPObjects[player].Box or {}) do pcall(function() line:Remove() end) end
         if Pug.ESPObjects[player].Name then pcall(function() Pug.ESPObjects[player].Name:Remove() end) end
-        if Pug.ESPObjects[player].Tracer then pcall(function() Pug.ESPObjects[player].Tracer:Remove() end) end
         Pug.ESPObjects[player] = nil
     end
 end
 
-function Pug.SetupCharacterDeath(player)
-    if player.Character then
-        local humanoid = player.Character:FindFirstChild("Humanoid")
-        if humanoid then
-            humanoid.Died:Connect(function() Pug.RemoveESP(player) end)
-        end
+-- Setup inicial de players
+for _, player in pairs(Players:GetPlayers()) do
+    if player ~= LocalPlayer then
+        player.CharacterAdded:Connect(function() Pug.RemoveESP(player) end)
     end
 end
 
--- Tema (nome trocado)
-WindUI:AddTheme({
-    Name = "Pug Red & Black Theme",
-    Accent = WindUI:Gradient({["0"] = {Color = Color3.fromHex("#ff0000"), Transparency = 0}, ["100"] = {Color = Color3.fromHex("#000000"), Transparency = 0}}, {Rotation = 45}),
-    Background = Color3.fromHex("#0a0a0a"),
-    -- (o resto do tema igual ao original, só troquei o nome)
-    -- ... cole o bloco completo do tema aqui se preferir, mas o nome tá correto agora
-})
+Players.PlayerAdded:Connect(function(player)
+    player.CharacterAdded:Connect(function() Pug.RemoveESP(player) end)
+end)
 
+Players.PlayerRemoving:Connect(Pug.RemoveESP)
+
+-- Update ESP + Aimbot
+RunService.RenderStepped:Connect(function()
+    -- Atualiza tamanho do FOV circle
+    FOVCircle.Size = UDim2.new(0, Pug.FOVSize * 2, 0, Pug.FOVSize * 2)
+    FOVCircle.Visible = Pug.FOVEnabled
+
+    -- Aimbot
+    if Pug.AimbotEnabled then
+        local target = Pug.GetClosestPlayer()
+        if target and target.Character and target.Character:FindFirstChild("Head") then
+            local headPos = target.Character.Head.Position
+            local camPos = Camera.CFrame.Position
+            local targetCF = CFrame.new(camPos, headPos)
+            Camera.CFrame = Camera.CFrame:Lerp(targetCF, 1 / Pug.SmoothAim)
+        end
+    end
+
+    -- ESP update (só box + name por enquanto)
+    pcall(function()
+        for _, player in pairs(Players:GetPlayers()) do
+            if player == LocalPlayer or not player.Character then
+                Pug.RemoveESP(player)
+                continue
+            end
+
+            if Pug.TeamCheck and player.Team == LocalPlayer.Team then
+                Pug.RemoveESP(player)
+                continue
+            end
+
+            local char = player.Character
+            local root = char:FindFirstChild("HumanoidRootPart")
+            local head = char:FindFirstChild("Head")
+            local hum = char:FindFirstChild("Humanoid")
+
+            if not root or not head or not hum or hum.Health <= 0 then
+                Pug.RemoveESP(player)
+                continue
+            end
+
+            Pug.CreateESP(player)
+
+            local headPos, onScreen = Camera:WorldToViewportPoint(head.Position + Vector3.new(0, 0.5, 0))
+            local rootPos = Camera:WorldToViewportPoint(root.Position)
+            local legPos = Camera:WorldToViewportPoint(root.Position - Vector3.new(0, 3, 0))
+
+            if not onScreen then
+                for _, line in pairs(Pug.ESPObjects[player].Box or {}) do line.Visible = false end
+                if Pug.ESPObjects[player].Name then Pug.ESPObjects[player].Name.Visible = false end
+                continue
+            end
+
+            local height = math.abs(headPos.Y - legPos.Y)
+            local width = height / 2
+
+            -- Box (4 linhas)
+            if Pug.ESPSettings.Outline.Enabled then
+                if #Pug.ESPObjects[player].Box == 0 then
+                    for i = 1, 4 do
+                        local line = Drawing.new("Line")
+                        line.Thickness = 2
+                        line.Transparency = 1
+                        table.insert(Pug.ESPObjects[player].Box, line)
+                    end
+                end
+
+                Pug.ESPObjects[player].Box[1].From = Vector2.new(rootPos.X - width, headPos.Y)
+                Pug.ESPObjects[player].Box[1].To = Vector2.new(rootPos.X + width, headPos.Y)
+                Pug.ESPObjects[player].Box[1].Visible = true
+
+                Pug.ESPObjects[player].Box[2].From = Vector2.new(rootPos.X - width, legPos.Y)
+                Pug.ESPObjects[player].Box[2].To = Vector2.new(rootPos.X + width, legPos.Y)
+                Pug.ESPObjects[player].Box[2].Visible = true
+
+                Pug.ESPObjects[player].Box[3].From = Vector2.new(rootPos.X - width, headPos.Y)
+                Pug.ESPObjects[player].Box[3].To = Vector2.new(rootPos.X - width, legPos.Y)
+                Pug.ESPObjects[player].Box[3].Visible = true
+
+                Pug.ESPObjects[player].Box[4].From = Vector2.new(rootPos.X + width, headPos.Y)
+                Pug.ESPObjects[player].Box[4].To = Vector2.new(rootPos.X + width, legPos.Y)
+                Pug.ESPObjects[player].Box[4].Visible = true
+            end
+
+            -- Name + Distância
+            if Pug.ESPSettings.Name.Enabled then
+                if not Pug.ESPObjects[player].Name then
+                    Pug.ESPObjects[player].Name = Drawing.new("Text")
+                    Pug.ESPObjects[player].Name.Center = true
+                    Pug.ESPObjects[player].Name.Outline = true
+                    Pug.ESPObjects[player].Name.Size = 14
+                    Pug.ESPObjects[player].Name.Color = Color3.fromRGB(255, 255, 0)
+                end
+
+                local dist = (root.Position - Camera.CFrame.Position).Magnitude
+                Pug.ESPObjects[player].Name.Text = player.Name .. " [" .. math.floor(dist) .. "m]"
+                Pug.ESPObjects[player].Name.Position = Vector2.new(headPos.X, headPos.Y - 20)
+                Pug.ESPObjects[player].Name.Visible = true
+            end
+        end
+    end)
+end)
+
+-- Janela mínima (só as opções necessárias)
 Pug.Window = WindUI:CreateWindow({
-    Title = "Pug's HUB | FPS FLICK 🔥",
+    Title = "Pug's HUB | FLICK",
     Author = "pug7joias",
-    Size = UDim2.new(0, 500, 0, 400),
-    Theme = "Pug Red & Black Theme",
+    Size = UDim2.new(0, 380, 0, 320),
     Keybind = Enum.KeyCode.RightControl,
 })
 
--- Aqui é o ponto crítico que tava errado antes
-Pug.Window:Tag({
-    Title = "Pug's HUB V1.6",
-    Icon = "skull",
-    Color = Color3.fromHex("#ff0000"),
-    Radius = 0,
-})
+local tab = Pug.Window:Tab({Title = "Main", Icon = "crosshair"})
 
-Pug.Window:EditOpenButton({
-    Title = "Open Pug's HUB",
-    Icon = "skull",
-    CornerRadius = UDim.new(0, 16),
-    StrokeThickness = 3,
-    Color = ColorSequence.new({
-        ColorSequenceKeypoint.new(0, Color3.fromHex("#ff0000")),
-        ColorSequenceKeypoint.new(0.5, Color3.fromHex("#cc0000")),
-        ColorSequenceKeypoint.new(1, Color3.fromHex("#000000"))
-    }),
-    Enabled = true,
-    Draggable = true,
-})
+tab:Toggle({Title = "Ativar Aimbot", Default = false, Callback = function(v) Pug.AimbotEnabled = v end})
+tab:Toggle({Title = "Wall Check", Default = false, Callback = function(v) Pug.WallCheck = v end})
+tab:Toggle({Title = "Team Check", Default = true, Callback = function(v) Pug.TeamCheck = v end})
+tab:Slider({Title = "Suavização", Min = 1, Max = 20, Default = 5, Callback = function(v) Pug.SmoothAim = v end})
+tab:Slider({Title = "Tamanho FOV", Min = 50, Max = 400, Default = 150, Callback = function(v) Pug.FOVSize = v end})
+tab:Toggle({Title = "Mostrar FOV Circle", Default = true, Callback = function(v) Pug.FOVEnabled = v end})
 
--- Abas
-Pug.TabAimbot = Pug.Window:Tab({Title = "Aimbot", Icon = "crosshair"})
-Pug.TabESP = Pug.Window:Tab({Title = "ESP", Icon = "eye"})
-Pug.TabRage = Pug.Window:Tab({Title = "Rage", Icon = "zap"})
-Pug.TabConfigs = Pug.Window:Tab({Title = "Configs", Icon = "settings"})
-
--- ... o resto do código (toggles, sliders, colorpickers, UpdateESP, loops, notify) continua exatamente igual, só trocando AHG por Pug em todas as funções e variáveis
-
--- No final:
+-- Notificação
 WindUI:Notify({
-    Title = "Pug's HUB CARREGADO",
-    Content = "Pug's HUB CARREGADO COM SUCESSO! SE DIVIRTA 🔥",
+    Title = "Pug's HUB Minimal Carregado",
+    Content = "Apenas Aimbot + ESP + FOV Circle + Team Check",
     Duration = 4,
-    Icon = "skull",
 })
 
-print("Pug's HUB | FPS FLICK 🔥 V1.6 - Carregado com sucesso! 💀🔴📱")
+print("Pug's HUB Minimal - Carregado! Só aim + esp + fov")
